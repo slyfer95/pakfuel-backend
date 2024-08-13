@@ -18,6 +18,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import connectToMongoDB from "./db/connectToMongoDB.js";
 
 import serverless from "serverless-http";
+import hello from "./netlify/function/hello.mjs";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -57,9 +58,7 @@ app.use("/api/fundsTransfer", fundsTransferRoutes);
 app.use("/api/topUp", topUpRoutes);
 app.use("/api/admin", adminRoutes);
 
-app.get("/", (req, res) => {
-  res.send("Hello World");
-});
+app.get("/", hello);
 
 app.listen(PORT, () => {
   connectToMongoDB();
