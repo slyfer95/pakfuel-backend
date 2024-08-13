@@ -68,4 +68,4 @@ app.listen(PORT, () => {
   );
 });
 
-export const handler = serverless(api);
+export const handler = serverless(app);
