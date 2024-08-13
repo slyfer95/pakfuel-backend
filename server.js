@@ -17,6 +17,8 @@ import adminRoutes from "./routes/admin.routes.js";
 
 import connectToMongoDB from "./db/connectToMongoDB.js";
 
+import serverless from "serverless-http";
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
