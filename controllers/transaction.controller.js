@@ -38,6 +38,83 @@ export const getCustomerTransactionHistory = async (req, res) => {
   }
 };
 
+// accessed by employees to get thier own transaction history
+export const getRefuelerTransactionHistory = async (req, res) => {
+  // get employee id from the protect employee route middleware
+
+  const employeeId = req.employee.userId;
+  try {
+    // find transactions in the Transaction model
+    const refuelerTransactions = await Transaction.find({ employeeId })
+      .sort({ createdAt: -1 })
+      .populate("customerId", "name");
+
+    if (refuelerTransactions.length === 0) {
+      return res.status(404).json({ error: "No refueler transactions found" });
+    }
+
+    // return the refueler transaction history
+    res.status(200).json({
+      message: "Refueler transaction history successfully retrieved",
+      transactions: refuelerTransactions,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ........................................ //
+// performs bad needs optimization
+// accessed by managers to geth thier employees transaction history
+export const getEmployeeTransactionHistory = async (req, res) => {
+  // Get manager id from the protect employee route middleware
+  const managerId = req.employee.userId;
+
+  const { employeeId } = req.body;
+
+  try {
+    // Find manager in the employee table
+    const managerEmployee = await Employee.findById(managerId).lean();
+
+    // Check if manager type is not manager
+    if (managerEmployee.type !== "manager") {
+      return res.status(403).json({
+        error: "Access denied! Employee History only available to the manager",
+      });
+    }
+
+    // Find employee in the employee table
+    const employee = await Employee.findById(employeeId);
+    // Check if employee exists
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    // Find transactions in the Transaction model
+    const employeeTransactions = await Transaction.find({
+      employeeId: employeeId,
+    })
+      .sort({ createdAt: -1 })
+      .populate("customerId", "name")
+      .lean(); // Use lean for better performance
+
+    // If no transactions are found
+    if (employeeTransactions.length === 0) {
+      return res.status(404).json({ error: "No employee transactions found" });
+    }
+
+    // Return the employee transaction history
+    res.status(200).json({
+      message: "Employee transaction history successfully retrieved",
+      transactions: employeeTransactions,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 // accessed by employees to create a transaction
 export const createTransaction = async (req, res) => {
   const errors = validationResult(req);
@@ -123,7 +200,9 @@ export const createTransaction = async (req, res) => {
     }
 
     // Send push notifications
-    let expo = new Expo();
+    let expo = new Expo({
+      useFcmV1: true,
+    });
     let messages = [];
 
     // Prepare message for customer
@@ -148,11 +227,46 @@ export const createTransaction = async (req, res) => {
 
     // Send notifications
     let chunks = expo.chunkPushNotifications(messages);
+    let tickets = [];
     for (let chunk of chunks) {
       try {
-        await expo.sendPushNotificationsAsync(chunk);
+        let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        console.log(ticketChunk);
+        tickets.push(...ticketChunk);
       } catch (error) {
         console.error("Error sending push notification:", error);
+      }
+    }
+
+    // Handle receipts
+    let receiptIds = [];
+    for (let ticket of tickets) {
+      if (ticket.status === "ok") {
+        receiptIds.push(ticket.id);
+      }
+    }
+
+    let receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds);
+    for (let chunk of receiptIdChunks) {
+      try {
+        let receipts = await expo.getPushNotificationReceiptsAsync(chunk);
+        console.log(receipts);
+
+        for (let receiptId in receipts) {
+          let { status, message, details } = receipts[receiptId];
+          if (status === "ok") {
+            continue;
+          } else if (status === "error") {
+            console.error(
+              `There was an error sending a notification: ${message}`
+            );
+            if (details && details.error) {
+              console.error(`The error code is ${details.error}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(error);
       }
     }
 
@@ -162,83 +276,6 @@ export const createTransaction = async (req, res) => {
           ? "Transaction successful, payment received through app"
           : "Transaction successful, kindly take cash payment from customer",
       transaction,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-// accessed by employees to get thier own transaction history
-export const getRefuelerTransactionHistory = async (req, res) => {
-  // get employee id from the protect employee route middleware
-
-  const employeeId = req.employee.userId;
-  try {
-    // find transactions in the Transaction model
-    const refuelerTransactions = await Transaction.find({ employeeId })
-      .sort({ createdAt: -1 })
-      .populate("customerId", "name");
-
-    if (refuelerTransactions.length === 0) {
-      return res.status(404).json({ error: "No refueler transactions found" });
-    }
-
-    // return the refueler transaction history
-    res.status(200).json({
-      message: "Refueler transaction history successfully retrieved",
-      transactions: refuelerTransactions,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-// ........................................ //
-// performs bad needs optimization
-// accessed by managers to geth thier employees transaction history
-export const getEmployeeTransactionHistory = async (req, res) => {
-  // Get manager id from the protect employee route middleware
-  const managerId = req.employee.userId;
-
-  const { employeeId } = req.body;
-
-  try {
-    // Find manager in the employee table
-    const managerEmployee = await Employee.findById(managerId).lean();
-
-    // Check if manager type is not manager
-    if (managerEmployee.type !== "manager") {
-      return res.status(403).json({
-        error: "Access denied! Employee History only available to the manager",
-      });
-    }
-
-    // Find employee in the employee table
-    const employee = await Employee.findById(employeeId);
-    // Check if employee exists
-    if (!employee) {
-      return res.status(404).json({ error: "Employee not found" });
-    }
-
-    // Find transactions in the Transaction model
-    const employeeTransactions = await Transaction.find({
-      employeeId: employeeId,
-    })
-      .sort({ createdAt: -1 })
-      .populate("customerId", "name")
-      .lean(); // Use lean for better performance
-
-    // If no transactions are found
-    if (employeeTransactions.length === 0) {
-      return res.status(404).json({ error: "No employee transactions found" });
-    }
-
-    // Return the employee transaction history
-    res.status(200).json({
-      message: "Employee transaction history successfully retrieved",
-      transactions: employeeTransactions,
     });
   } catch (error) {
     console.error(error);
