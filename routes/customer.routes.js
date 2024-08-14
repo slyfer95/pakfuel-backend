@@ -7,6 +7,7 @@ import {
   getCustomerProfile,
   updateCustomerProfile,
   uploadImage,
+  updatePushToken,
 } from "../controllers/customer.controller.js";
 import protectAdminRoute from "../middleware/protectAdminRoute.js";
 
@@ -49,5 +50,8 @@ router.post("/image", protectCustomerRoute, uploadImage);
 
 // @access Admin
 router.get("/getCustomerList", protectAdminRoute, getCustomerList);
+
+// @access customer
+router.post("/updatePushToken", protectCustomerRoute, updatePushToken);
 
 export default router;

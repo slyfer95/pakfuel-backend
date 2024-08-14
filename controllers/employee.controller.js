@@ -200,3 +200,24 @@ export const uploadImage = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+// @desc update push token
+// @route /api/employee/updatePushToken
+// @access employees (refueler and manager)
+export const updatePushToken = async (req, res) => {
+  const employee = req.employee;
+  const { pushToken } = req.body;
+
+  try {
+    const updatedEmployee = await Employee.findByIdAndUpdate(employee.userId, {
+      pushToken,
+    });
+
+    res.status(200).json({
+      message: "Push token updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating push token:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};

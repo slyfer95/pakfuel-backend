@@ -54,6 +54,9 @@ const customerSchema = new mongoose.Schema(
     otpExpiry: {
       type: Date,
     },
+    pushToken: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

@@ -154,6 +154,9 @@ export const getCustomerList = async (req, res) => {
   }
 };
 
+// @desc customer uploads his image
+// @route /api/customer/uploadImage
+// @access customer
 export const uploadImage = async (req, res) => {
   try {
     const customer = req.customer;
@@ -170,6 +173,27 @@ export const uploadImage = async (req, res) => {
     });
   } catch (error) {
     console.error("Error uploading image:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// @desc customer updates his push token
+// @route /api/customer/updatePushToken
+// @access customer
+export const updatePushToken = async (req, res) => {
+  const customer = req.customer;
+  const { pushToken } = req.body;
+
+  try {
+    const updatedCustomer = await Customer.findByIdAndUpdate(customer.userId, {
+      pushToken,
+    });
+
+    res.status(200).json({
+      message: "Push token updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating push token:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
