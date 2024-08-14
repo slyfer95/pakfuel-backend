@@ -96,6 +96,84 @@ export const transferFunds = async (req, res) => {
     // save the changes to the database in a single promise
     Promise.all([sender.save(), receiver.save(), fundsTransfer.save()]);
 
+    // Send notifications to both sender and receiver
+    async function sendFundsTransferNotifications(
+      senderToken,
+      receiverToken,
+      amount,
+      entityTransfered
+    ) {
+      let expo = new Expo({
+        accessToken: process.env.EXPO_ACCESS_TOKEN,
+        useFcmV1: true,
+      });
+
+      let senderMessages = [];
+      let receiverMessages = [];
+
+      // Prepare message for sender
+      if (Expo.isExpoPushToken(senderToken)) {
+        senderMessages.push({
+          to: senderToken,
+          sound: "default",
+          body: `You have successfully transferred ${amount} ${entityTransfered} to ${receiver.name}`,
+          data: { transactionId: fundsTransfer._id },
+        });
+      } else {
+        console.error(
+          `Sender push token ${senderToken} is not a valid Expo push token`
+        );
+      }
+
+      // Prepare message for receiver
+      if (Expo.isExpoPushToken(receiverToken)) {
+        receiverMessages.push({
+          to: receiverToken,
+          sound: "default",
+          body: `You have received ${amount} ${entityTransfered} from ${sender.name}`,
+          data: { transactionId: fundsTransfer._id },
+        });
+      } else {
+        console.error(
+          `Receiver push token ${receiverToken} is not a valid Expo push token`
+        );
+      }
+
+      // Send sender notifications
+      if (senderMessages.length > 0) {
+        let senderChunks = expo.chunkPushNotifications(senderMessages);
+        for (let chunk of senderChunks) {
+          try {
+            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            console.log(ticketChunk);
+          } catch (error) {
+            console.error("Error sending sender push notification:", error);
+          }
+        }
+      }
+
+      // Send receiver notifications
+      if (receiverMessages.length > 0) {
+        let receiverChunks = expo.chunkPushNotifications(receiverMessages);
+        for (let chunk of receiverChunks) {
+          try {
+            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            console.log(ticketChunk);
+          } catch (error) {
+            console.error("Error sending receiver push notification:", error);
+          }
+        }
+      }
+    }
+
+    // Call the sendFundsTransferNotifications function
+    await sendFundsTransferNotifications(
+      sender.pushToken,
+      receiver.pushToken,
+      amount,
+      entityTransfered
+    );
+
     // return the updated customer profiles and funds trnasfer record
     res.status(200).json({
       message: "Balance transfer successful",
