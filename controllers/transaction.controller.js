@@ -113,6 +113,14 @@ export const createTransaction = async (req, res) => {
       // Save transaction
       await transaction.save();
     }
+    // Check if customer and employee have push tokens
+    if (!customer.pushToken) {
+      console.error("Customer does not have a push token");
+    }
+
+    if (!employee.pushToken) {
+      console.error("Employee does not have a push token");
+    }
 
     // Send push notifications
     let expo = new Expo();
