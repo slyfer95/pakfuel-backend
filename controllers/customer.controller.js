@@ -189,6 +189,8 @@ export const updatePushToken = async (req, res) => {
       pushToken,
     });
 
+    console.log(updatedCustomer);
+
     res.status(200).json({
       message: "Push token updated successfully",
     });

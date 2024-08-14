@@ -155,11 +155,18 @@ export const createTransaction = async (req, res) => {
     let transaction;
 
     if (paymentMethod === "app") {
+      console.log(amount);
+      console.log(typeof amount);
+      console.log(Number(amount));
+
+      console.log(customer.balance);
+      console.log(pump.balance);
+
       // Subtract amount from customer balance
-      customer.balance -= amount;
+      customer.balance -= Number(amount);
 
       // Add amount to pump balance (ensure you have a balance field in Pump schema)
-      pump.balance += amount;
+      pump.balance += Number(amount);
 
       // Create transaction
       transaction = new Transaction({
@@ -199,6 +206,8 @@ export const createTransaction = async (req, res) => {
       console.error("Employee does not have a push token");
     }
 
+    console.log(customer.pushToken, employee.pushToken);
+
     // Function to send notifications
     async function sendNotifications(
       customerToken,
@@ -211,14 +220,15 @@ export const createTransaction = async (req, res) => {
     ) {
       let expo = new Expo({
         accessToken: process.env.EXPO_ACCESS_TOKEN,
-        useFcmV1: false,
+        useFcmV1: true,
       });
 
-      let messages = [];
+      let customerMessages = [];
+      let employeeMessages = [];
 
       // Prepare message for customer
       if (Expo.isExpoPushToken(customerToken)) {
-        messages.push({
+        customerMessages.push({
           to: customerToken,
           sound: "default",
           body: `Transaction of ${amount} completed for ${fuelAmount} ${fuelType}`,
@@ -232,7 +242,7 @@ export const createTransaction = async (req, res) => {
 
       // Prepare message for refueler
       if (Expo.isExpoPushToken(employeeToken)) {
-        messages.push({
+        employeeMessages.push({
           to: employeeToken,
           sound: "default",
           body: `Transaction of ${amount} completed for customer ${customerName}`,
@@ -244,46 +254,29 @@ export const createTransaction = async (req, res) => {
         );
       }
 
-      let chunks = expo.chunkPushNotifications(messages);
-      let tickets = [];
-      for (let chunk of chunks) {
-        try {
-          let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-          console.log(ticketChunk);
-          tickets.push(...ticketChunk);
-        } catch (error) {
-          console.error("Error sending push notification:", error);
-        }
-      }
-
-      let receiptIds = [];
-      for (let ticket of tickets) {
-        if (ticket.status === "ok") {
-          receiptIds.push(ticket.id);
-        }
-      }
-
-      let receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds);
-      for (let chunk of receiptIdChunks) {
-        try {
-          let receipts = await expo.getPushNotificationReceiptsAsync(chunk);
-          console.log(receipts);
-
-          for (let receiptId in receipts) {
-            let { status, message, details } = receipts[receiptId];
-            if (status === "ok") {
-              continue;
-            } else if (status === "error") {
-              console.error(
-                `There was an error sending a notification: ${message}`
-              );
-              if (details && details.error) {
-                console.error(`The error code is ${details.error}`);
-              }
-            }
+      // Send customer notifications
+      if (customerMessages.length > 0) {
+        let customerChunks = expo.chunkPushNotifications(customerMessages);
+        for (let chunk of customerChunks) {
+          try {
+            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            console.log(ticketChunk);
+          } catch (error) {
+            console.error("Error sending customer push notification:", error);
           }
-        } catch (error) {
-          console.error(error);
+        }
+      }
+
+      // Send employee notifications
+      if (employeeMessages.length > 0) {
+        let employeeChunks = expo.chunkPushNotifications(employeeMessages);
+        for (let chunk of employeeChunks) {
+          try {
+            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            console.log(ticketChunk);
+          } catch (error) {
+            console.error("Error sending employee push notification:", error);
+          }
         }
       }
     }

@@ -31,6 +31,10 @@ const changePasswordValidation = [
     .withMessage("Passwords do not match"),
 ];
 
+const updatePushTokenValidation = [
+  body("pushToken").notEmpty().withMessage("Push token is required"),
+];
+
 // @access customer
 router.get("/profile", protectCustomerRoute, getCustomerProfile);
 
@@ -52,6 +56,11 @@ router.post("/image", protectCustomerRoute, uploadImage);
 router.get("/getCustomerList", protectAdminRoute, getCustomerList);
 
 // @access customer
-router.post("/updatePushToken", protectCustomerRoute, updatePushToken);
+router.post(
+  "/updatePushToken",
+  updatePushTokenValidation,
+  protectCustomerRoute,
+  updatePushToken
+);
 
 export default router;
