@@ -16,6 +16,7 @@ import topUpRoutes from "./routes/topUp.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 
 import connectToMongoDB from "./db/connectToMongoDB.js";
+import Customer from "./models/customer.model.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -58,6 +59,23 @@ app.use("/api/admin", adminRoutes);
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
+
+// Cleanup function to delete unverified customers
+const deleteUnverifiedCustomers = async () => {
+  try {
+    const expiryDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    await Customer.deleteMany({
+      isVerified: false,
+      createdAt: { $lt: expiryDate },
+    });
+    console.log("Deleted unverified customers older than 24 hours.");
+  } catch (error) {
+    console.error("Error deleting unverified customers:", error);
+  }
+};
+
+// Schedule the cleanup task to run every 24 hours
+setInterval(deleteUnverifiedCustomers, 24 * 60 * 60 * 1000); // Run once every 24 hours
 
 app.listen(PORT, () => {
   connectToMongoDB();

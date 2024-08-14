@@ -208,8 +208,6 @@ export const updatePushToken = async (req, res) => {
   const employee = req.employee;
   const { pushToken } = req.body;
 
-  console.log("pushhhhh", pushToken);
-
   try {
     const updatedEmployee = await Employee.findByIdAndUpdate(employee.userId, {
       pushToken,
