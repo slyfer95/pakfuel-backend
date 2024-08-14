@@ -3,6 +3,7 @@ import Customer from "../models/customer.model.js";
 import Employee from "../models/employee.model.js";
 import Pump from "../models/pump.model.js";
 import { validationResult } from "express-validator";
+import { Expo } from "expo-server-sdk";
 
 // accessed by customers to view their transaction history
 export const getCustomerTransactionHistory = async (req, res) => {
@@ -74,6 +75,8 @@ export const createTransaction = async (req, res) => {
       return res.status(404).json({ error: "Pump not found" });
     }
 
+    let transaction;
+
     if (paymentMethod === "app") {
       // Subtract amount from customer balance
       customer.balance -= amount;
@@ -82,7 +85,7 @@ export const createTransaction = async (req, res) => {
       pump.balance += amount;
 
       // Create transaction
-      const transaction = new Transaction({
+      transaction = new Transaction({
         amount,
         paymentMethod,
         fuelType,
@@ -94,15 +97,10 @@ export const createTransaction = async (req, res) => {
 
       // Save transaction, customer, and pump to the database
       await Promise.all([transaction.save(), customer.save(), pump.save()]);
-
-      res.status(200).json({
-        message: "Transaction successful, payment received through app",
-        transaction,
-      });
     } else {
       // If payment through cash
       // Create transaction
-      const transaction = new Transaction({
+      transaction = new Transaction({
         amount,
         paymentMethod,
         fuelType,
@@ -114,13 +112,49 @@ export const createTransaction = async (req, res) => {
 
       // Save transaction
       await transaction.save();
+    }
 
-      res.status(200).json({
-        message:
-          "Transaction successful, kindly take cash payment from customer",
-        transaction,
+    // Send push notifications
+    let expo = new Expo();
+    let messages = [];
+
+    // Prepare message for customer
+    if (Expo.isExpoPushToken(customer.pushToken)) {
+      messages.push({
+        to: customer.pushToken,
+        sound: "default",
+        body: `Transaction of ${amount} completed for ${fuelAmount} ${fuelType}`,
+        data: { transactionId: transaction._id },
       });
     }
+
+    // Prepare message for refueler
+    if (Expo.isExpoPushToken(employee.pushToken)) {
+      messages.push({
+        to: employee.pushToken,
+        sound: "default",
+        body: `Transaction of ${amount} completed for customer ${customer.name}`,
+        data: { transactionId: transaction._id },
+      });
+    }
+
+    // Send notifications
+    let chunks = expo.chunkPushNotifications(messages);
+    for (let chunk of chunks) {
+      try {
+        await expo.sendPushNotificationsAsync(chunk);
+      } catch (error) {
+        console.error("Error sending push notification:", error);
+      }
+    }
+
+    res.status(200).json({
+      message:
+        paymentMethod === "app"
+          ? "Transaction successful, payment received through app"
+          : "Transaction successful, kindly take cash payment from customer",
+      transaction,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
