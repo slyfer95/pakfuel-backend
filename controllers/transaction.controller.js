@@ -199,76 +199,105 @@ export const createTransaction = async (req, res) => {
       console.error("Employee does not have a push token");
     }
 
-    // Send push notifications
-    let expo = new Expo({
-      useFcmV1: true,
-    });
-    let messages = [];
-
-    // Prepare message for customer
-    if (Expo.isExpoPushToken(customer.pushToken)) {
-      messages.push({
-        to: customer.pushToken,
-        sound: "default",
-        body: `Transaction of ${amount} completed for ${fuelAmount} ${fuelType}`,
-        data: { transactionId: transaction._id },
+    // Function to send notifications
+    async function sendNotifications(
+      customerToken,
+      employeeToken,
+      amount,
+      fuelAmount,
+      fuelType,
+      customerName,
+      transactionId
+    ) {
+      let expo = new Expo({
+        accessToken: process.env.EXPO_ACCESS_TOKEN,
+        useFcmV1: false,
       });
-    }
 
-    // Prepare message for refueler
-    if (Expo.isExpoPushToken(employee.pushToken)) {
-      messages.push({
-        to: employee.pushToken,
-        sound: "default",
-        body: `Transaction of ${amount} completed for customer ${customer.name}`,
-        data: { transactionId: transaction._id },
-      });
-    }
+      let messages = [];
 
-    // Send notifications
-    let chunks = expo.chunkPushNotifications(messages);
-    let tickets = [];
-    for (let chunk of chunks) {
-      try {
-        let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        console.log(ticketChunk);
-        tickets.push(...ticketChunk);
-      } catch (error) {
-        console.error("Error sending push notification:", error);
+      // Prepare message for customer
+      if (Expo.isExpoPushToken(customerToken)) {
+        messages.push({
+          to: customerToken,
+          sound: "default",
+          body: `Transaction of ${amount} completed for ${fuelAmount} ${fuelType}`,
+          data: { transactionId: transactionId },
+        });
+      } else {
+        console.error(
+          `Customer push token ${customerToken} is not a valid Expo push token`
+        );
       }
-    }
 
-    // Handle receipts
-    let receiptIds = [];
-    for (let ticket of tickets) {
-      if (ticket.status === "ok") {
-        receiptIds.push(ticket.id);
+      // Prepare message for refueler
+      if (Expo.isExpoPushToken(employeeToken)) {
+        messages.push({
+          to: employeeToken,
+          sound: "default",
+          body: `Transaction of ${amount} completed for customer ${customerName}`,
+          data: { transactionId: transactionId },
+        });
+      } else {
+        console.error(
+          `Employee push token ${employeeToken} is not a valid Expo push token`
+        );
       }
-    }
 
-    let receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds);
-    for (let chunk of receiptIdChunks) {
-      try {
-        let receipts = await expo.getPushNotificationReceiptsAsync(chunk);
-        console.log(receipts);
+      let chunks = expo.chunkPushNotifications(messages);
+      let tickets = [];
+      for (let chunk of chunks) {
+        try {
+          let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          console.log(ticketChunk);
+          tickets.push(...ticketChunk);
+        } catch (error) {
+          console.error("Error sending push notification:", error);
+        }
+      }
 
-        for (let receiptId in receipts) {
-          let { status, message, details } = receipts[receiptId];
-          if (status === "ok") {
-            continue;
-          } else if (status === "error") {
-            console.error(
-              `There was an error sending a notification: ${message}`
-            );
-            if (details && details.error) {
-              console.error(`The error code is ${details.error}`);
+      let receiptIds = [];
+      for (let ticket of tickets) {
+        if (ticket.status === "ok") {
+          receiptIds.push(ticket.id);
+        }
+      }
+
+      let receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds);
+      for (let chunk of receiptIdChunks) {
+        try {
+          let receipts = await expo.getPushNotificationReceiptsAsync(chunk);
+          console.log(receipts);
+
+          for (let receiptId in receipts) {
+            let { status, message, details } = receipts[receiptId];
+            if (status === "ok") {
+              continue;
+            } else if (status === "error") {
+              console.error(
+                `There was an error sending a notification: ${message}`
+              );
+              if (details && details.error) {
+                console.error(`The error code is ${details.error}`);
+              }
             }
           }
+        } catch (error) {
+          console.error(error);
         }
-      } catch (error) {
-        console.error(error);
       }
     }
+
+    // Call the sendNotifications function
+    await sendNotifications(
+      customer.pushToken,
+      employee.pushToken,
+      amount,
+      fuelAmount,
+      fuelType,
+      customer.name,
+      transaction._id
+    );
 
     res.status(200).json({
       message:
