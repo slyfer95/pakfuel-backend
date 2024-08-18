@@ -17,7 +17,7 @@ export const addPump = async (req, res) => {
   }
 
   try {
-    const { name, location, coordinates, manager } = req.body;
+    const { name, location, coordinates, manager, corporation } = req.body;
 
     const admin = req.admin._id;
 
@@ -26,6 +26,7 @@ export const addPump = async (req, res) => {
       location,
       coordinates,
       addedBy: admin,
+      corporation,
       manager,
     });
 

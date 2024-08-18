@@ -168,6 +168,30 @@ export const createTransaction = async (req, res) => {
       // Add amount to pump balance (ensure you have a balance field in Pump schema)
       pump.balance += Number(amount);
 
+      const loyaltyPointsEarned = Math.floor(
+        Number(amount) / Number(pump.loyaltyThreshold)
+      );
+      console.log(
+        "loyaltyPointsEarned",
+        pump.loyaltyThreshold,
+        loyaltyPointsEarned
+      );
+      // Find existing loyalty points for this pump
+      const existingLoyaltyPoints = customer.loyaltyPoints.find(
+        (lp) => lp.pumpId.toString() === pump._id.toString()
+      );
+
+      if (existingLoyaltyPoints) {
+        // If loyalty points for this pump exist, update them
+        existingLoyaltyPoints.points += loyaltyPointsEarned;
+      } else {
+        // If no loyalty points for this pump, add new entry
+        customer.loyaltyPoints.push({
+          pumpId: pump._id,
+          points: loyaltyPointsEarned,
+        });
+      }
+
       // Create transaction
       transaction = new Transaction({
         amount,

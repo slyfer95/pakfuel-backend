@@ -15,6 +15,10 @@ const pumpSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    loyaltyThreshold: {
+      type: Number,
+      default: 0,
+    },
     coordinates: {
       type: new mongoose.Schema(
         {
