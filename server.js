@@ -26,23 +26,23 @@ config();
 app.use(express.json({ limit: "10mb" })); // to parse the incoming request with JSON payloads (from req.body)
 app.use(cookieParser());
 
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-    methods: "GET,POST,PUT,DELETE,OPTIONS",
-    allowedHeaders: "Content-Type,Authorization",
-    credentials: true,
-  })
-);
-
 // app.use(
 //   cors({
-//     origin: "https://pakfuel-admin.netlify.app",
+//     origin: "http://localhost:3000",
 //     methods: "GET,POST,PUT,DELETE,OPTIONS",
 //     allowedHeaders: "Content-Type,Authorization",
 //     credentials: true,
 //   })
 // );
+
+app.use(
+  cors({
+    origin: "https://pakfuel-admin.netlify.app",
+    methods: "GET,POST,PUT,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type,Authorization",
+    credentials: true,
+  })
+);
 
 app.use("/api/auth/customer", authCustomerRoutes);
 app.use("/api/auth/employee", authEmployeeRoutes);
