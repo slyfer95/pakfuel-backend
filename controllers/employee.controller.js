@@ -163,7 +163,7 @@ export const getEmployeeList = async (req, res) => {
 export const getAllEmployeesList = async (req, res) => {
   try {
     // Find all employees in the database
-    const employees = await Employee.find();
+    const employees = await Employee.find().populate("pumpId", "name");
 
     // return error if no employees
 
