@@ -180,10 +180,12 @@ export const createTransaction = async (req, res) => {
       const existingLoyaltyPoints = customer.loyaltyPoints.find(
         (lp) => lp.pumpId.toString() === pump._id.toString()
       );
-
       if (existingLoyaltyPoints) {
         // If loyalty points for this pump exist, update them
-        existingLoyaltyPoints.points += loyaltyPointsEarned;
+        existingLoyaltyPoints.points = Math.min(
+          existingLoyaltyPoints.points + loyaltyPointsEarned,
+          100
+        );
       } else {
         // If no loyalty points for this pump, add new entry
         customer.loyaltyPoints.push({

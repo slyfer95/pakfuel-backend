@@ -51,3 +51,50 @@ export const getCustomerLoyaltyPoints = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+// Redeem loyalty points for a customer
+export const redeemLoyaltyPoints = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { pumpId } = req.body;
+  const customerId = req.customer.userId;
+
+  try {
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+
+    const loyaltyProgram = customer.loyaltyPoints.find(
+      (lp) => lp.pumpId.toString() === pumpId
+    );
+
+    if (!loyaltyProgram) {
+      return res
+        .status(404)
+        .json({ error: "Loyalty program not found for this pump" });
+    }
+
+    if (loyaltyProgram.points < 100) {
+      return res
+        .status(400)
+        .json({ error: "Not enough loyalty points to redeem" });
+    }
+
+    // Redeem points
+    loyaltyProgram.points -= 100;
+    customer.balance += 100;
+
+    await customer.save();
+
+    res
+      .status(200)
+      .json({ message: "Loyalty points redeemed successfully", customer });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};

@@ -3,6 +3,7 @@ import { body } from "express-validator";
 import {
   setLoyaltyThreshold,
   getCustomerLoyaltyPoints,
+  redeemLoyaltyPoints,
 } from "../controllers/loyalty.controller.js";
 import protectEmployeeRoute from "../middleware/protectEmployeeRoute.js";
 import protectCustomerRoute from "../middleware/protectCustomerRoute.js";
@@ -24,5 +25,7 @@ router.post(
 );
 
 router.get("/points", protectCustomerRoute, getCustomerLoyaltyPoints);
+
+router.post("/redeem", protectCustomerRoute, redeemLoyaltyPoints);
 
 export default router;
