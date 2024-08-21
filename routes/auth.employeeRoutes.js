@@ -6,6 +6,9 @@ import {
   requetsNewOtp,
   signupEmployee,
   verifyOtpEmployee,
+  requestPasswordReset,
+  verifyOtpForgetPassword,
+  resetPassword,
 } from "../controllers/auth.employeeController.js";
 
 const router = express.Router();
@@ -54,5 +57,11 @@ router.post("/logout", logoutEmployee);
 router.post("/verify-otp", otpValidation, verifyOtpEmployee);
 
 router.get("/requestNewOtp", requetsNewOtp);
+
+router.post("/requestPasswordReset", requestPasswordReset);
+
+router.post("/verifyOtpForgetPassword", verifyOtpForgetPassword);
+
+router.post("/resetPassword", resetPassword);
 
 export default router;

@@ -267,3 +267,142 @@ export const requetsNewOtp = async (req, res) => {
     res.status(500).json({ error: "Internal Server error" });
   }
 };
+
+export const requestPasswordReset = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    let errorMsg = "";
+    errors
+      .array()
+      .forEach((error) => (errorMsg += `for: ${error.path}, ${error.msg} \n`));
+    return res.status(400).json({ error: errorMsg });
+  }
+
+  const { email } = req.body;
+
+  try {
+    const employee = await Employee.findOne({ email });
+    if (!employee) {
+      return res
+        .status(400)
+        .json({ error: "No employee found with this email" });
+    }
+
+    if (!employee.isVerified) {
+      return res.status(400).json({
+        error:
+          "Account is not verified. Please verify your account first, or signup again",
+      });
+    }
+
+    if (employee.otp && employee.otpExpiry > Date.now()) {
+      const remainingTime = (employee.otpExpiry - Date.now()) / 1000;
+      return res.status(400).json({
+        error: `Password reset request already sent, OTP has been provided. Proceed to the next page to send the otp or Try again in ${Math.ceil(
+          remainingTime
+        )} seconds`,
+      });
+    }
+
+    const otp = generateOtp();
+    const otpExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes from now
+
+    employee.otp = otp;
+    employee.otpExpiry = otpExpiry;
+
+    await Promise.all([
+      employee.save(),
+      sendEmail(
+        employee.email,
+        "Password Reset OTP Code",
+        `Your OTP code is ${otp}`
+      ),
+    ]);
+
+    res.status(200).json({
+      message: `Password reset OTP sent to email. \n${employee.email}`,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server error" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    let errorMsg = "";
+    errors
+      .array()
+      .forEach((error) => (errorMsg += `for: ${error.path}, ${error.msg} \n`));
+    return res.status(400).json({ error: errorMsg });
+  }
+
+  const { email, newPassword, otp } = req.body;
+
+  try {
+    const employee = await Employee.findOne({ email });
+    if (!employee) {
+      return res
+        .status(400)
+        .json({ error: "No employee found with this email" });
+    }
+
+    if (employee.otp !== otp) {
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    if (employee.otpExpiry < Date.now()) {
+      return res
+        .status(400)
+        .json({ error: "OTP has expired, \nPlease Request another" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    employee.password = await bcrypt.hash(newPassword, salt);
+
+    employee.otp = null; // Clear the OTP
+    employee.otpExpiry = null; // Clear the OTP expiry
+    await employee.save();
+
+    res.status(200).json({
+      message: "Password reset successful.",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server error" });
+  }
+};
+
+export const verifyOtpForgetPassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: errors.array() });
+  }
+
+  const { otp } = req.body;
+  const email = otp.email;
+  const OTP = otp.otp;
+
+  if (!OTP && !email) {
+    return res.status(400).json({ error: "Invalid OTP or email" });
+  }
+
+  const employee = await Employee.findOne({ email });
+
+  if (!employee) {
+    return res.status(404).json({ error: "Employee not found" });
+  }
+
+  if (employee.otp !== OTP) {
+    return res.status(400).json({ error: "Invalid OTP" });
+  }
+
+  if (employee.otpExpiry < Date.now()) {
+    return res
+      .status(400)
+      .json({ error: "OTP has expired, \nPlease Request another" });
+  }
+
+  res.status(200).json({ message: "OTP verified successfully" });
+};
