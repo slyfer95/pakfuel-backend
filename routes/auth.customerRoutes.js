@@ -8,6 +8,7 @@ import {
   resetPassword,
   signupCustomer,
   verifyOtpCustomer,
+  verifyOtpForgetPassword,
 } from "../controllers/auth.customerController.js";
 
 const router = express.Router();
@@ -56,12 +57,6 @@ const resetPasswordValidation = [
   body("newPassword")
     .isLength({ min: 6 })
     .withMessage("Password must be at least 6 characters"),
-  body("confirmNewPassword")
-    .isLength({ min: 6 })
-    .withMessage("Confirm password must be at least 6 characters"),
-  body("confirmNewPassword")
-    .custom((value, { req }) => value === req.body.newPassword)
-    .withMessage("Passwords do not match"),
 ];
 
 // Define routes with validation
@@ -80,6 +75,8 @@ router.post(
   requestPasswordResetValidation,
   requestPasswordReset
 );
+
+router.post("/verifyOtpForgetPassword", verifyOtpForgetPassword);
 
 router.post("/resetPassword", resetPasswordValidation, resetPassword);
 

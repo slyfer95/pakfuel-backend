@@ -381,37 +381,66 @@ export const resetPassword = async (req, res) => {
         .json({ error: "No customer found with this email" });
     }
 
-    // if !customer.otp then give error
-    if (!customer.otp) {
-      return res
-        .status(400)
-        .json({ error: "Password reset has not been requested" });
-    }
-
-    // if customer.otp is expired then give error
-    if (customer.otpExpiry < Date.now()) {
-      return res.status(400).json({
-        error: "OTP has expired, \nPlease Request another",
-      });
-    }
-
-    // validate otp
     if (customer.otp !== otp) {
       return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    if (customer.otpExpiry < Date.now()) {
+      return res
+        .status(400)
+        .json({ error: "OTP has expired, \nPlease Request another" });
     }
 
     // hash the new password
     const salt = await bcrypt.genSalt(10);
     customer.password = await bcrypt.hash(newPassword, salt);
 
+    customer.otp = null; // Clear the OTP
+    customer.otpExpiry = null; // Clear the OTP expiry
     await customer.save();
 
     res.status(200).json({
-      message:
-        "Password reset successful, Please go back to the Sign in page to Login again",
+      message: "Password reset successful.",
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server error" });
   }
+};
+
+export const verifyOtpForgetPassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: errors.array() });
+  }
+
+  const { otp } = req.body;
+  const email = otp.email;
+  const OTP = otp.otp;
+
+  if (!OTP && !email) {
+    return res.status(400).json({ error: "Invalid OTP or email" });
+  }
+
+  const customer = await Customer.findOne({ email });
+
+  if (!customer) {
+    return res.status(404).json({ error: "Customer not found" });
+  }
+
+  if (customer.otp !== OTP) {
+    return res.status(400).json({ error: "Invalid OTP" });
+  }
+
+  if (customer.otpExpiry < Date.now()) {
+    return res
+      .status(400)
+      .json({ error: "OTP has expired, \nPlease Request another" });
+  }
+
+  // customer.otp = null; // Clear the OTP
+  // customer.otpExpiry = null; // Clear the OTP expiry
+  // await customer.save();
+
+  res.status(200).json({ message: "OTP verified successfully" });
 };
