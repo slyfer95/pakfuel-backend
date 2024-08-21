@@ -218,41 +218,48 @@ export const getEmployeeListByPump = async (req, res) => {
 
 // @desc get list of all employees assigned to a specific pump
 // @route /api/pump/removeEmployeeFromPump
-// @access Admin
+// @access Manager
 export const removeEmployeeFromPump = async (req, res) => {
-  const { pumpId, employeeEmail } = req.body;
+  const { employeeEmail } = req.body;
+  const managerId = req.employee.userId;
 
   try {
-    // find the pump in the pump collection
-    const pump = await Pump.findById(pumpId);
+    // Find the manager and their associated pump
+    const manager = await Employee.findById(managerId);
+    if (!manager || manager.type !== "manager") {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
 
+    const pump = await Pump.findOne({ manager: managerId });
     if (!pump) {
-      return res.status(404).json({ message: "Pump not found" });
+      return res
+        .status(404)
+        .json({ message: "Pump not found for this manager" });
     }
 
     const employee = await Employee.findOne({ email: employeeEmail });
-
     if (!employee) {
       return res.status(404).json({ message: "Employee does not exist" });
     }
 
-    // search for the employeeId in the pump.employees array
+    // Check if the employee is in this manager's pump
     const index = pump.employees.indexOf(employee._id);
     if (index === -1) {
       return res
         .status(404)
-        .json({ message: "Employee not found in the pump" });
+        .json({ message: "Employee not found in your pump" });
     }
-    // remove the employeeId from the pump.employees array
+
+    // Remove the employee from the pump
     pump.employees.splice(index, 1);
     employee.isEmployed = false;
     employee.pumpId = undefined;
 
-    Promise.all([await pump.save(), await employee.save()]);
+    await Promise.all([pump.save(), employee.save()]);
 
     res.status(200).json({ message: "Employee removed successfully", pump });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };

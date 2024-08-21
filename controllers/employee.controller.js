@@ -136,7 +136,7 @@ export const getEmployeeList = async (req, res) => {
     // it returns a list
     const pumps = await Pump.find({ manager: managerId }).populate(
       "employees",
-      "name email phoneNumber createdAt"
+      "name email phoneNumber createdAt imageUrl pumpId"
     );
 
     // If no pumps found, this manager is not assigned to a pump

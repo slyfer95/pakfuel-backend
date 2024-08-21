@@ -80,10 +80,10 @@ router.get("/getPumpList", protectAdminRoute, getPumpList);
 // @access Admin
 router.post("employeeListByPump", protectAdminRoute, getEmployeeListByPump);
 
-// @access Admin
+// @access Manager
 router.post(
   "/removeEmployeeFromPump",
-  protectAdminRoute,
+  protectEmployeeRoute,
   removeEmployeeFromPump
 );
 
