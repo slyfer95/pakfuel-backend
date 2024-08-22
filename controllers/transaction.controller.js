@@ -154,34 +154,35 @@ export const createTransaction = async (req, res) => {
 
     let transaction;
 
+    // Calculate loyalty points
+    const loyaltyPointsEarned = Math.floor(
+      Number(amount) / Number(pump.loyaltyThreshold)
+    );
+
+    // Find existing loyalty points for this pump
+    const existingLoyaltyPoints = customer.loyaltyPoints.find(
+      (lp) => lp.pumpId.toString() === pump._id.toString()
+    );
+    if (existingLoyaltyPoints) {
+      // If loyalty points for this pump exist, update them
+      existingLoyaltyPoints.points = Math.min(
+        existingLoyaltyPoints.points + loyaltyPointsEarned,
+        100
+      );
+    } else {
+      // If no loyalty points for this pump, add new entry
+      customer.loyaltyPoints.push({
+        pumpId: pump._id,
+        points: loyaltyPointsEarned,
+      });
+    }
+
     if (paymentMethod === "app") {
       // Subtract amount from customer balance
       customer.balance -= Number(amount);
 
       // Add amount to pump balance (ensure you have a balance field in Pump schema)
       pump.balance += Number(amount);
-
-      const loyaltyPointsEarned = Math.floor(
-        Number(amount) / Number(pump.loyaltyThreshold)
-      );
-
-      // Find existing loyalty points for this pump
-      const existingLoyaltyPoints = customer.loyaltyPoints.find(
-        (lp) => lp.pumpId.toString() === pump._id.toString()
-      );
-      if (existingLoyaltyPoints) {
-        // If loyalty points for this pump exist, update them
-        existingLoyaltyPoints.points = Math.min(
-          existingLoyaltyPoints.points + loyaltyPointsEarned,
-          100
-        );
-      } else {
-        // If no loyalty points for this pump, add new entry
-        customer.loyaltyPoints.push({
-          pumpId: pump._id,
-          points: loyaltyPointsEarned,
-        });
-      }
 
       // Create transaction
       transaction = new Transaction({
@@ -197,31 +198,6 @@ export const createTransaction = async (req, res) => {
       // Save transaction, customer, and pump to the database
       await Promise.all([transaction.save(), customer.save(), pump.save()]);
     } else {
-      const loyaltyPointsEarned = Math.floor(
-        Number(amount) / Number(pump.loyaltyThreshold)
-      );
-      console.log(
-        "loyaltyPointsEarned",
-        pump.loyaltyThreshold,
-        loyaltyPointsEarned
-      );
-      // Find existing loyalty points for this pump
-      const existingLoyaltyPoints = customer.loyaltyPoints.find(
-        (lp) => lp.pumpId.toString() === pump._id.toString()
-      );
-      if (existingLoyaltyPoints) {
-        // If loyalty points for this pump exist, update them
-        existingLoyaltyPoints.points = Math.min(
-          existingLoyaltyPoints.points + loyaltyPointsEarned,
-          100
-        );
-      } else {
-        // If no loyalty points for this pump, add new entry
-        customer.loyaltyPoints.push({
-          pumpId: pump._id,
-          points: loyaltyPointsEarned,
-        });
-      }
       // If payment through cash
       // Create transaction
       transaction = new Transaction({
@@ -234,9 +210,10 @@ export const createTransaction = async (req, res) => {
         employeeId,
       });
 
-      // Save transaction
-      await transaction.save();
+      // Save transaction and customer (to update loyalty points)
+      await Promise.all([transaction.save(), customer.save()]);
     }
+
     // Check if customer and employee have push tokens
     if (!customer.pushToken) {
       console.error("Customer does not have a push token");
