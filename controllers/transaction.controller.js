@@ -155,13 +155,6 @@ export const createTransaction = async (req, res) => {
     let transaction;
 
     if (paymentMethod === "app") {
-      console.log(amount);
-      console.log(typeof amount);
-      console.log(Number(amount));
-
-      console.log(customer.balance);
-      console.log(pump.balance);
-
       // Subtract amount from customer balance
       customer.balance -= Number(amount);
 
@@ -171,11 +164,7 @@ export const createTransaction = async (req, res) => {
       const loyaltyPointsEarned = Math.floor(
         Number(amount) / Number(pump.loyaltyThreshold)
       );
-      console.log(
-        "loyaltyPointsEarned",
-        pump.loyaltyThreshold,
-        loyaltyPointsEarned
-      );
+
       // Find existing loyalty points for this pump
       const existingLoyaltyPoints = customer.loyaltyPoints.find(
         (lp) => lp.pumpId.toString() === pump._id.toString()
